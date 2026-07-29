@@ -10,6 +10,9 @@ enum AgentIcons {
 
     /// herdr agent id -> bundled PNG basename.
     private static let files: [String: String] = [
+        "claude": "claudecode-color",
+        "claudecode": "claudecode-color",
+        "codex": "codex-color",
         "opencode": "opencode",
         "gemini": "gemini-color",
         "geminicli": "geminicli-color",
@@ -26,13 +29,6 @@ enum AgentIcons {
         "roocode": "roocode",
         "trae": "trae-color",
         "kiro": "kiro-color",
-    ]
-
-    /// Brand assets whose runtime ids should not be persisted in repository text.
-    private static let privateFiles: [UInt64: String] = [
-        0x2ffb778dfae54384: "agent-mark-01",
-        0x239194803edf98f7: "agent-mark-02",
-        0x7254a0fa1bdd2396: "agent-mark-02",
     ]
 
     /// Agents with no brand asset but a recognisable glyph of their own.
@@ -60,14 +56,15 @@ enum AgentIcons {
     }
 
     private static func load(agent: String, size: CGFloat) -> NSImage? {
-        let normalizedAgent = agent.lowercased()
-        guard let name = files[normalizedAgent] ?? privateFiles[stableKey(normalizedAgent)],
+        guard let name = files[agent.lowercased()],
               let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "agents")
                 ?? Bundle.main.url(forResource: name, withExtension: "png"),
               let image = NSImage(contentsOf: url) else { return nil }
         return image
     }
 
+    /// FNV-1a. Swift's own `hashValue` is seeded per process, which would repaint
+    /// an agent a different colour on every launch.
     private static func stableKey(_ value: String) -> UInt64 {
         var hash: UInt64 = 0xcbf29ce484222325
         for byte in value.utf8 {
@@ -80,7 +77,7 @@ enum AgentIcons {
     /// Rounded tile with the agent's glyph — used for agents we ship no art for.
     private static func generated(agent: String, size: CGFloat) -> NSImage {
         let glyph = glyphs[agent] ?? String(agent.prefix(1)).uppercased()
-        let paletteIndex = Int(UInt(bitPattern: agent.hashValue) % UInt(palette.count))
+        let paletteIndex = Int(stableKey(agent) % UInt64(palette.count))
         let tint = palette[paletteIndex]
 
         let image = NSImage(size: NSSize(width: size, height: size))
