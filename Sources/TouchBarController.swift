@@ -267,9 +267,11 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
         btn.identifier = NSUserInterfaceItemIdentifier(entry.paneId)
         btn.imagePosition = .imageLeading
         btn.imageScaling = .scaleProportionallyDown
+        btn.cell?.usesSingleLineMode = false
         btn.cell?.lineBreakMode = .byTruncatingTail
         btn.translatesAutoresizingMaskIntoConstraints = false
         btn.widthAnchor.constraint(lessThanOrEqualToConstant: 210).isActive = true
+        btn.heightAnchor.constraint(equalToConstant: Self.barHeight).isActive = true
 
         agentButtons[entry.paneId] = btn
         paint(btn, with: entry)
@@ -283,7 +285,9 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
 
     private func paint(_ btn: NSButton, with entry: AgentEntry) {
         btn.attributedTitle = title(for: entry)
-        btn.setAccessibilityLabel("\(entry.agent) \(entry.label), \(entry.status.rawValue)")
+        btn.setAccessibilityLabel(
+            "\(entry.agent) \(entry.label), \(entry.project), \(entry.status.rawValue)"
+        )
         let base = StatusPalette.bezel(for: entry.status)
         // The focused agent gets a brighter face so you can see where you already are.
         btn.bezelColor = entry.focused ? base.blended(withFraction: 0.35, of: .white) : base
@@ -298,7 +302,27 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
         case .done:    prefix = "✓ "
         case .idle, .unknown: prefix = ""
         }
-        return attributed(prefix + entry.label, color: StatusPalette.text(for: entry.status))
+
+        let color = StatusPalette.text(for: entry.status)
+        let mainParagraph = NSMutableParagraphStyle()
+        mainParagraph.lineBreakMode = .byTruncatingTail
+        mainParagraph.maximumLineHeight = 13
+
+        let title = NSMutableAttributedString(string: prefix + entry.label, attributes: [
+            .foregroundColor: color,
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
+            .paragraphStyle: mainParagraph,
+        ])
+
+        let projectParagraph = NSMutableParagraphStyle()
+        projectParagraph.lineBreakMode = .byTruncatingTail
+        projectParagraph.maximumLineHeight = 9
+        title.append(NSAttributedString(string: "\n" + entry.project, attributes: [
+            .foregroundColor: color.withAlphaComponent(0.68),
+            .font: NSFont.systemFont(ofSize: 8.5, weight: .regular),
+            .paragraphStyle: projectParagraph,
+        ]))
+        return title
     }
 
     private func attributed(_ text: String, color: NSColor) -> NSAttributedString {

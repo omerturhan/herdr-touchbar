@@ -25,6 +25,7 @@ struct AgentEntry: Equatable {
     var paneId: String
     var tabId: String
     var workspaceId: String
+    var project: String
     var agent: String
     var status: AgentStatus
     var label: String
@@ -32,8 +33,8 @@ struct AgentEntry: Equatable {
 
     static func == (a: AgentEntry, b: AgentEntry) -> Bool {
         a.paneId == b.paneId && a.tabId == b.tabId && a.workspaceId == b.workspaceId
-            && a.agent == b.agent && a.status == b.status && a.label == b.label
-            && a.focused == b.focused
+            && a.project == b.project && a.agent == b.agent && a.status == b.status
+            && a.label == b.label && a.focused == b.focused
     }
 }
 
@@ -74,6 +75,7 @@ final class AgentStore {
         ["type": "tab.focused"],
         ["type": "tab.moved"],
         ["type": "workspace.focused"],
+        ["type": "workspace.renamed"],
         ["type": "workspace.closed"],
         ["type": "workspace.moved"],
     ]
@@ -182,10 +184,21 @@ final class AgentStore {
             }
         }
 
+        var workspaceLabels: [String: String] = [:]
+        if let rawWorkspaces = snapshot["workspaces"] as? [[String: Any]] {
+            for workspace in rawWorkspaces {
+                guard let id = workspace["workspace_id"] as? String,
+                      let rawLabel = workspace["label"] as? String else { continue }
+                let label = rawLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !label.isEmpty { workspaceLabels[id] = label }
+            }
+        }
+
         var entries: [AgentEntry] = []
         for raw in rawAgents {
             guard let paneId = raw["pane_id"] as? String else { continue }
             let tabId = raw["tab_id"] as? String ?? ""
+            let workspaceId = raw["workspace_id"] as? String ?? ""
             let fallback = raw["terminal_title_stripped"] as? String
                 ?? raw["terminal_title"] as? String
                 ?? paneId
@@ -197,7 +210,8 @@ final class AgentStore {
             entries.append(AgentEntry(
                 paneId: paneId,
                 tabId: tabId,
-                workspaceId: raw["workspace_id"] as? String ?? "",
+                workspaceId: workspaceId,
+                project: workspaceLabels[workspaceId] ?? "Workspace",
                 agent: agent,
                 status: AgentStatus(herdr: raw["agent_status"] as? String),
                 label: label,

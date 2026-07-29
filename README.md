@@ -20,10 +20,10 @@ the Touch Bar becomes a row of agents you can jump straight into.
 | `⃠ herdr` (grey) | the herdr server is not running |
 
 **The expanded panel** shows one button per agent: its brand icon, its tab name,
-and a colour for its state — red blocked, orange working (with a live spinner),
-green done, grey idle. Agents that need you sort to the left. The agent you are
-currently in gets a brighter button. Tapping one focuses that agent in herdr and
-brings the terminal to the front.
+its project name in a smaller second line, and a colour for its state — red
+blocked, orange working (with a live spinner), green done, grey idle. Agents that
+need you sort to the left. The agent you are currently in gets a brighter button.
+Tapping one focuses that agent in herdr and brings the terminal to the front.
 
 The layout freezes while the panel is open, so a button never slides out from
 under a finger that is already reaching for it.
