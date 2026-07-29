@@ -163,7 +163,7 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
         // it, and TouchBarServer does not reclaim it when that process dies — the
         // whole Touch Bar is left black until ControlStrip is restarted. Always
         // hand it back before letting go of anything else.
-        closePanel()
+        closePanel(teardown: true)
         spinnerTimer?.invalidate()
         spinnerTimer = nil
         NSWorkspace.shared.notificationCenter.removeObserver(self)
@@ -309,7 +309,15 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
         assertStripPresence()
     }
 
-    private func closePanel() {
+    /// Collapse the panel.
+    ///
+    /// `teardown` picks which private call to use, and the difference matters.
+    /// `minimize` folds the modal bar back into the Control Strip and leaves our
+    /// badge sitting there — that is what a user closing the panel wants.
+    /// `dismiss` tears the modal down outright, which is right when the process
+    /// is going away but leaves the Touch Bar with no badge to tap if used for an
+    /// ordinary close.
+    private func closePanel(teardown: Bool = false) {
         // No `guard panelVisible` here: if our belief and reality ever disagree,
         // the safe direction is to hand the bar back anyway.
         panelVisible = false
@@ -317,7 +325,11 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
         onScreenOrder = []
 
         if let bar = panelTouchBar {
-            NSTouchBar.dismissSystemModalTouchBar(bar)
+            if teardown {
+                NSTouchBar.dismissSystemModalTouchBar(bar)
+            } else {
+                NSTouchBar.minimizeSystemModalTouchBar(bar)
+            }
             panelTouchBar = nil
         }
         assertStripPresence()
