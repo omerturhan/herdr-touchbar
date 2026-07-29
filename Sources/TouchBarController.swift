@@ -5,6 +5,84 @@ extension NSTouchBarItem.Identifier {
     static let herdrList  = NSTouchBarItem.Identifier("dev.herdr.touchbar.list")
 }
 
+/// Button content uses explicit constraints because NSButtonCell vertically
+/// centers an image and multiline title as one block. The icon stays centered;
+/// the tab and project labels start at the top edge.
+private final class AgentButton: NSButton {
+    private let iconView = NSImageView()
+    private let tabLabel = NSTextField(labelWithString: "")
+    private let projectLabel = NSTextField(labelWithString: "")
+
+    init(target: AnyObject?, action: Selector?) {
+        super.init(frame: .zero)
+        self.target = target
+        self.action = action
+        title = ""
+
+        iconView.imageScaling = .scaleProportionallyDown
+        tabLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+        tabLabel.cell?.lineBreakMode = .byTruncatingTail
+        projectLabel.font = .systemFont(ofSize: 8.5, weight: .regular)
+        projectLabel.cell?.lineBreakMode = .byTruncatingTail
+
+        for view in [iconView, tabLabel, projectLabel] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(view)
+        }
+
+        tabLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        projectLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        NSLayoutConstraint.activate([
+            iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 18),
+            iconView.heightAnchor.constraint(equalToConstant: 18),
+
+            tabLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 5),
+            tabLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8),
+            tabLabel.topAnchor.constraint(equalTo: topAnchor, constant: 1),
+            tabLabel.heightAnchor.constraint(equalToConstant: 14),
+
+            projectLabel.leadingAnchor.constraint(equalTo: tabLabel.leadingAnchor),
+            projectLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8),
+            projectLabel.topAnchor.constraint(equalTo: tabLabel.bottomAnchor, constant: -1),
+            projectLabel.heightAnchor.constraint(equalToConstant: 10),
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override var intrinsicContentSize: NSSize {
+        let textWidth = max(
+            tabLabel.intrinsicContentSize.width,
+            projectLabel.intrinsicContentSize.width
+        )
+        let width = min(max(8 + 18 + 5 + textWidth + 8, 88), 210)
+        return NSSize(width: width, height: 30)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        bounds.contains(point) ? self : nil
+    }
+
+    func update(icon: NSImage, tab: String, project: String, color: NSColor) {
+        iconView.image = icon
+        tabLabel.stringValue = tab
+        tabLabel.textColor = color
+        projectLabel.stringValue = project
+        projectLabel.textColor = color.withAlphaComponent(0.68)
+        invalidateIntrinsicContentSize()
+    }
+
+    func updateTab(_ tab: String) {
+        tabLabel.stringValue = tab
+        invalidateIntrinsicContentSize()
+    }
+}
+
 /// Owns everything the user sees: the always-present Control Strip badge, and the
 /// full-width agent list that replaces the Touch Bar when the badge is tapped.
 final class TouchBarController: NSObject, NSTouchBarDelegate {
@@ -21,7 +99,7 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
     /// Buttons currently on screen, plus the order they were laid out in. Holding
     /// the order lets status changes repaint in place instead of rebuilding —
     /// buttons must not slide out from under a finger that is already reaching.
-    private var agentButtons: [String: NSButton] = [:]
+    private var agentButtons: [String: AgentButton] = [:]
     private var onScreenOrder: [String] = []
 
     private var spinnerTimer: Timer?
@@ -147,7 +225,7 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
         renderStrip(store.snapshot)
         if panelVisible {
             for entry in store.snapshot.agents where entry.status.isBusy {
-                agentButtons[entry.paneId]?.attributedTitle = title(for: entry)
+                agentButtons[entry.paneId]?.updateTab(primaryText(for: entry))
             }
         }
     }
@@ -262,14 +340,10 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     private func button(for entry: AgentEntry) -> NSButton {
-        let btn = NSButton(title: "", image: AgentIcons.icon(for: entry.agent),
-                           target: self, action: #selector(agentTapped(_:)))
+        let btn = AgentButton(target: self, action: #selector(agentTapped(_:)))
         btn.identifier = NSUserInterfaceItemIdentifier(entry.paneId)
-        btn.imagePosition = .imageLeading
-        btn.imageScaling = .scaleProportionallyDown
-        btn.cell?.usesSingleLineMode = false
-        btn.cell?.lineBreakMode = .byTruncatingTail
         btn.translatesAutoresizingMaskIntoConstraints = false
+        btn.widthAnchor.constraint(greaterThanOrEqualToConstant: 88).isActive = true
         btn.widthAnchor.constraint(lessThanOrEqualToConstant: 210).isActive = true
         btn.heightAnchor.constraint(equalToConstant: Self.barHeight).isActive = true
 
@@ -283,8 +357,13 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
         paint(btn, with: entry)
     }
 
-    private func paint(_ btn: NSButton, with entry: AgentEntry) {
-        btn.attributedTitle = title(for: entry)
+    private func paint(_ btn: AgentButton, with entry: AgentEntry) {
+        btn.update(
+            icon: AgentIcons.icon(for: entry.agent),
+            tab: primaryText(for: entry),
+            project: entry.project,
+            color: StatusPalette.text(for: entry.status)
+        )
         btn.setAccessibilityLabel(
             "\(entry.agent) \(entry.label), \(entry.project), \(entry.status.rawValue)"
         )
@@ -294,7 +373,7 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     /// Busy agents carry a live spinner ahead of the tab name.
-    private func title(for entry: AgentEntry) -> NSAttributedString {
+    private func primaryText(for entry: AgentEntry) -> String {
         let prefix: String
         switch entry.status {
         case .working: prefix = Spinner.frame(tick) + " "
@@ -302,27 +381,7 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
         case .done:    prefix = "✓ "
         case .idle, .unknown: prefix = ""
         }
-
-        let color = StatusPalette.text(for: entry.status)
-        let mainParagraph = NSMutableParagraphStyle()
-        mainParagraph.lineBreakMode = .byTruncatingTail
-        mainParagraph.maximumLineHeight = 13
-
-        let title = NSMutableAttributedString(string: prefix + entry.label, attributes: [
-            .foregroundColor: color,
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
-            .paragraphStyle: mainParagraph,
-        ])
-
-        let projectParagraph = NSMutableParagraphStyle()
-        projectParagraph.lineBreakMode = .byTruncatingTail
-        projectParagraph.maximumLineHeight = 9
-        title.append(NSAttributedString(string: "\n" + entry.project, attributes: [
-            .foregroundColor: color.withAlphaComponent(0.68),
-            .font: NSFont.systemFont(ofSize: 8.5, weight: .regular),
-            .paragraphStyle: projectParagraph,
-        ]))
-        return title
+        return prefix + entry.label
     }
 
     private func attributed(_ text: String, color: NSColor) -> NSAttributedString {
