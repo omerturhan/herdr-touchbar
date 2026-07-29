@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Build the app bundle
+        run: bash build.sh
+
+      - name: Check the bundle is well formed
+        run: |
+          set -euo pipefail
+          APP=build/HerdrTouchBar.app
+          test -x "$APP/Contents/MacOS/HerdrTouchBar"
+          plutil -lint "$APP/Contents/Info.plist"
+          codesign --verify --deep --strict "$APP"
+          # Both slices matter: most Touch Bar Macs are Intel, the M1 13" is arm64.
+          lipo -archs "$APP/Contents/MacOS/HerdrTouchBar" | tee /dev/stderr | grep -q x86_64
+          lipo -archs "$APP/Contents/MacOS/HerdrTouchBar" | grep -q arm64
+          test -n "$(ls build/HerdrTouchBar.app/Contents/Resources/agents/*.png)"
+
+      - name: Lint shell scripts
+        run: |
+          brew install shellcheck
+          shellcheck build.sh bin/*.sh

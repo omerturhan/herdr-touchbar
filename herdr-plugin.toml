@@ -1,0 +1,49 @@
+id = "herdr-touchbar"
+name = "Herdr Touch Bar"
+version = "0.1.0"
+min_herdr_version = "0.7.5"
+description = "Shows working and blocked herdr agents on the MacBook Touch Bar; tap one to jump straight to its tab."
+platforms = ["macos"]
+
+[[build]]
+command = ["bash", "build.sh"]
+
+# Bring the Touch Bar app up with the herdr session.
+[[startup]]
+command = ["bash", "bin/run.sh", "ensure"]
+
+[[actions]]
+id = "start"
+title = "Touch Bar: start / restart"
+contexts = ["workspace", "pane"]
+command = ["bash", "bin/run.sh", "restart"]
+
+[[actions]]
+id = "stop"
+title = "Touch Bar: stop"
+contexts = ["workspace", "pane"]
+command = ["bash", "bin/run.sh", "stop"]
+
+[[actions]]
+id = "status"
+title = "Touch Bar: status"
+contexts = ["workspace", "pane"]
+command = ["bash", "bin/run.sh", "status"]
+
+[[actions]]
+id = "install-login-item"
+title = "Touch Bar: start automatically at login"
+contexts = ["workspace", "pane"]
+command = ["bash", "bin/launchagent.sh", "install"]
+
+[[actions]]
+id = "uninstall-login-item"
+title = "Touch Bar: stop starting at login"
+contexts = ["workspace", "pane"]
+command = ["bash", "bin/launchagent.sh", "uninstall"]
+
+# The app holds its own event subscription and is started by [[startup]], so this
+# hook is a recovery net if it is not running when a new agent is detected.
+[[events]]
+on = "pane.agent_detected"
+command = ["bash", "bin/run.sh", "ensure"]
