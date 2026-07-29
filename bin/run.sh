@@ -74,8 +74,18 @@ start() {
 
 stop() {
   if running; then
+    # Give up the system-modal Touch Bar before anything else. TERM already does
+    # this via a clean AppKit shutdown, but if we ever have to escalate to KILL
+    # the modal must be gone first — TouchBarServer does not reclaim it from a
+    # dead process, and the whole Touch Bar goes black until ControlStrip restarts.
+    signal_app USR2
+    sleep 0.2
     signal_app TERM
-    wait_until_stopped
+    if ! wait_until_stopped; then
+      echo "warning: escalating to KILL" >&2
+      signal_app KILL
+      wait_until_stopped || true
+    fi
     rm -f "$READY"
     echo "stopped"
   else

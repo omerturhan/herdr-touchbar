@@ -25,8 +25,12 @@ blocked, orange working (with a live spinner), green done, grey idle. Agents tha
 need you sort to the left. The agent you are currently in gets a brighter button.
 Tapping one focuses that agent in herdr and brings the terminal to the front.
 
-The layout freezes while the panel is open, so a button never slides out from
-under a finger that is already reaching for it.
+The panel stays up after a tap — hopping between agents is the whole point, and
+reopening it every time would be worse than leaving it in reach. The layout also
+freezes while it is open, so a button never slides out from under a finger that
+is already reaching for it; the order is only re-sorted when an agent appears or
+disappears. The ✕ on the left collapses back to the Control Strip, which you will
+want when you need the volume and brightness keys back.
 
 ## Install
 

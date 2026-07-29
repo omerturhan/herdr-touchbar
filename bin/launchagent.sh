@@ -15,6 +15,18 @@ case "${1:-install}" in
   install)
     [ -x "$APP/Contents/MacOS/HerdrTouchBar" ] || bash "$ROOT/build.sh"
     mkdir -p "$(dirname "$PLIST")"
+
+    # launchd does not inherit your shell environment, so carry any HERDR_* config
+    # set at install time into the plist. Re-run install to change it.
+    ENV_BLOCK=""
+    while IFS='=' read -r key value; do
+      [ -n "$key" ] || continue
+      ENV_BLOCK+="    <key>$key</key><string>$value</string>"$'\n'
+    done < <(env | grep -E '^HERDR_(TOUCHBAR_|SOCKET_PATH)' | sort)
+    if [ -n "$ENV_BLOCK" ]; then
+      ENV_BLOCK="  <key>EnvironmentVariables</key>"$'\n'"  <dict>"$'\n'"$ENV_BLOCK  </dict>"
+    fi
+
     cat > "$PLIST" <<PLISTEOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -28,6 +40,7 @@ case "${1:-install}" in
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><false/>
   <key>ProcessType</key><string>Interactive</string>
+$ENV_BLOCK
   <key>StandardErrorPath</key><string>$HOME/Library/Logs/herdr-touchbar.log</string>
   <key>StandardOutPath</key><string>$HOME/Library/Logs/herdr-touchbar.log</string>
 </dict>

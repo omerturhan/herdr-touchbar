@@ -6,8 +6,15 @@ import AppKit
 signal(SIGUSR1, SIG_IGN)
 signal(SIGUSR2, SIG_IGN)
 
+// SIGTERM/SIGINT would otherwise kill us outright, skipping
+// applicationWillTerminate and stranding a presented system-modal Touch Bar that
+// nothing else can dismiss. Catch them and shut down through AppKit instead.
+signal(SIGTERM, SIG_IGN)
+signal(SIGINT, SIG_IGN)
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let controller = TouchBarController()
+    private var terminationSources: [DispatchSourceSignal] = []
     private var readinessURL: URL {
         Bundle.main.bundleURL
             .deletingLastPathComponent()
@@ -15,6 +22,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ note: Notification) {
+        for sig in [SIGTERM, SIGINT] {
+            let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            source.setEventHandler { NSApp.terminate(nil) }
+            source.resume()
+            terminationSources.append(source)
+        }
+
         controller.install()
         let pid = "\(ProcessInfo.processInfo.processIdentifier)\n"
         do {
