@@ -4,7 +4,11 @@ Your [herdr](https://herdr.dev) agents on the MacBook Touch Bar. A badge in the
 Control Strip tells you how many agents are working or waiting on you; tap it and
 the Touch Bar becomes a row of agents you can jump straight into.
 
-![Control Strip badge](docs/control-strip.png)
+![The Control Strip badge, showing two agents at work](docs/control-strip.png)
+
+Tap it and the whole bar becomes your herd:
+
+![The expanded panel: one button per agent, showing its icon, tab name and project](docs/panel.png)
 
 ## What you see
 
@@ -19,7 +23,7 @@ the Touch Bar becomes a row of agents you can jump straight into.
 | `⠿ 9` (grey) | 9 agents, all idle |
 | `⃠ herdr` (grey) | the herdr server is not running |
 
-**The expanded panel** shows one button per agent: its brand icon, its tab name,
+**The expanded panel** (above) shows one button per agent: its brand icon, its tab name,
 its project name in a smaller second line, and a colour for its state — red
 blocked, orange working (with a live spinner), green done, grey idle. Agents that
 need you sort to the left. The agent you are currently in gets a brighter button.
