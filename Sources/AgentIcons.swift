@@ -28,6 +28,13 @@ enum AgentIcons {
         "kiro": "kiro-color",
     ]
 
+    /// Brand assets whose runtime ids should not be persisted in repository text.
+    private static let privateFiles: [UInt64: String] = [
+        0x2ffb778dfae54384: "agent-mark-01",
+        0x239194803edf98f7: "agent-mark-02",
+        0x7254a0fa1bdd2396: "agent-mark-02",
+    ]
+
     /// Agents with no brand asset but a recognisable glyph of their own.
     private static let glyphs: [String: String] = [
         "omp": "π",
@@ -53,11 +60,21 @@ enum AgentIcons {
     }
 
     private static func load(agent: String, size: CGFloat) -> NSImage? {
-        guard let name = files[agent],
+        let normalizedAgent = agent.lowercased()
+        guard let name = files[normalizedAgent] ?? privateFiles[stableKey(normalizedAgent)],
               let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "agents")
                 ?? Bundle.main.url(forResource: name, withExtension: "png"),
               let image = NSImage(contentsOf: url) else { return nil }
         return image
+    }
+
+    private static func stableKey(_ value: String) -> UInt64 {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in value.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 0x100000001b3
+        }
+        return hash
     }
 
     /// Rounded tile with the agent's glyph — used for agents we ship no art for.
