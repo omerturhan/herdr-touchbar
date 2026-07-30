@@ -3,9 +3,7 @@ import Foundation
 /// Location of the herdr server's control socket.
 enum HerdrPaths {
     static var socketPath: String {
-        if let override = ProcessInfo.processInfo.environment["HERDR_SOCKET_PATH"], !override.isEmpty {
-            return override
-        }
+        if let override = Config.string("HERDR_SOCKET_PATH") { return override }
         let config = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]
             ?? (NSHomeDirectory() as NSString).appendingPathComponent(".config")
         return (config as NSString).appendingPathComponent("herdr/herdr.sock")

@@ -1,11 +1,88 @@
 import AppKit
 
+/// Settings lookup, in priority order: the process environment, then a `.env`
+/// file in the plugin's herdr config directory.
+///
+/// The file matters because the app is launched with `open`, and LaunchServices
+/// does not hand a launched app the environment of whatever asked for it — so
+/// exporting a variable in a shell could never reach us. The config directory is
+/// the same one `herdr plugin config-dir herdr-touchbar` prints.
+///
+/// Deliberately does not use `Log`: `Log` reads its own setting from here.
+enum Config {
+
+    private static let fileValues: [String: String] = loadEnvFile()
+
+    static func string(_ key: String) -> String? {
+        if let value = ProcessInfo.processInfo.environment[key], !value.isEmpty { return value }
+        if let value = fileValues[key], !value.isEmpty { return value }
+        return nil
+    }
+
+    static func flag(_ key: String) -> Bool {
+        ["1", "true", "yes", "on"].contains(string(key)?.lowercased() ?? "")
+    }
+
+    static var configDirectory: String {
+        if let dir = ProcessInfo.processInfo.environment["HERDR_PLUGIN_CONFIG_DIR"], !dir.isEmpty {
+            return dir
+        }
+        let config = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]
+            ?? (NSHomeDirectory() as NSString).appendingPathComponent(".config")
+        return (config as NSString).appendingPathComponent("herdr/plugins/config/herdr-touchbar")
+    }
+
+    /// Minimal `KEY=value` reader: tolerates `export`, surrounding quotes,
+    /// comments and blank lines. No interpolation.
+    private static func loadEnvFile() -> [String: String] {
+        let path = (configDirectory as NSString).appendingPathComponent(".env")
+        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return [:] }
+
+        var values: [String: String] = [:]
+        for rawLine in text.split(whereSeparator: \.isNewline) {
+            var line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.isEmpty || line.hasPrefix("#") { continue }
+            if line.hasPrefix("export ") { line = String(line.dropFirst("export ".count)) }
+
+            guard let split = line.firstIndex(of: "=") else { continue }
+            let key = line[line.startIndex..<split].trimmingCharacters(in: .whitespaces)
+            var value = line[line.index(after: split)...].trimmingCharacters(in: .whitespaces)
+            if value.count >= 2, let first = value.first, first == "\"" || first == "'",
+               value.last == first {
+                value = String(value.dropFirst().dropLast())
+            }
+            if !key.isEmpty { values[key] = value }
+        }
+        return values
+    }
+}
+
 enum Log {
-    private static let verbose = ["1", "true", "yes", "on"]
-        .contains(ProcessInfo.processInfo.environment["HERDR_TOUCHBAR_DEBUG"]?.lowercased() ?? "")
+    private static let verbose = Config.flag("HERDR_TOUCHBAR_DEBUG")
+
+    /// Launched through `open`, the app has no useful stderr, so everything also
+    /// goes to the standard user log location where it can actually be read.
+    private static let file: FileHandle? = {
+        let dir = (NSHomeDirectory() as NSString).appendingPathComponent("Library/Logs")
+        let path = (dir as NSString).appendingPathComponent("herdr-touchbar.log")
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: path) {
+            try? fm.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            fm.createFile(atPath: path, contents: nil)
+        }
+        guard let handle = FileHandle(forWritingAtPath: path) else { return nil }
+        handle.seekToEndOfFile()
+        return handle
+    }()
+
+    private static let lock = NSLock()
 
     static func info(_ message: String) {
-        FileHandle.standardError.write(Data("[herdr-touchbar] \(message)\n".utf8))
+        let line = Data("[herdr-touchbar] \(message)\n".utf8)
+        lock.lock()
+        defer { lock.unlock() }
+        FileHandle.standardError.write(line)
+        file?.write(line)
     }
 
     static func warn(_ message: String) { info("warning: \(message)") }
@@ -33,8 +110,7 @@ enum TerminalActivator {
     ]
 
     private static var preferred: [String] {
-        let env = ProcessInfo.processInfo.environment["HERDR_TOUCHBAR_TERMINAL_BUNDLE_ID"]
-        if let env, !env.isEmpty { return [env] }
+        if let configured = Config.string("HERDR_TOUCHBAR_TERMINAL_BUNDLE_ID") { return [configured] }
         return candidates
     }
 

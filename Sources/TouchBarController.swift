@@ -113,8 +113,7 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
     private var tick = 0
 
     /// Hide idle agents, for people who only want the ones that need attention.
-    private static let onlyActive = ["1", "true", "yes", "on"]
-        .contains(ProcessInfo.processInfo.environment["HERDR_TOUCHBAR_ONLY_ACTIVE"]?.lowercased() ?? "")
+    private static let onlyActive = Config.flag("HERDR_TOUCHBAR_ONLY_ACTIVE")
 
     private static let panelMaxWidth: CGFloat = 980
     private static let barHeight: CGFloat = 30

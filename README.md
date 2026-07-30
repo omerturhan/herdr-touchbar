@@ -55,18 +55,23 @@ Installing runs `build.sh`, which compiles and ad-hoc signs
 the installed toolchain can produce them. No Xcode project and no developer
 account are needed — just the command line tools.
 
-The plugin's `[[startup]]` hook launches the app with your herdr session, so
-after the first `bin/run.sh start` you should not have to think about it again.
-If you want the badge even when herdr is not running — right after login, say —
-install the LaunchAgent too:
+That is the whole setup. The plugin's `[[startup]]` hook launches the app once
+herdr has restored its session, and herdr itself starts at login, so the badge
+comes back on its own after a reboot. To bring it up right now without waiting:
 
 ```sh
 bash bin/run.sh start
-bash bin/launchagent.sh install   # optional
 ```
 
-Both are also available from herdr's plugin action menu ("Touch Bar: start /
-restart", "Touch Bar: start automatically at login").
+There is also a "Touch Bar: start / restart" entry in herdr's plugin action menu.
+
+**No LaunchAgent, on purpose.** An earlier version installed one in
+`~/Library/LaunchAgents`, and macOS announced "HerdrTouchBar added items that can
+run in the background" at *every* login. Background items are tracked by code
+signature, and an ad-hoc signature changes on every rebuild, so the system kept
+treating it as something new. Letting herdr own the lifecycle removes the
+registration entirely — and herdr is already running whenever this plugin has
+anything to show.
 
 ## Requirements
 
@@ -88,24 +93,34 @@ keyboard instead of reaching for the Touch Bar.
 
 ## Uninstall
 
-If you installed the optional login item, remove it before uninstalling the
-plugin so no LaunchAgent is left pointing at the managed checkout:
-
 ```sh
-bash bin/launchagent.sh uninstall
+bash bin/run.sh stop
 herdr plugin uninstall herdr-touchbar
 ```
 
 ## Configuration
 
-Set these in the LaunchAgent's environment, or export them before `bin/run.sh start`:
+Put these in a `.env` file in the plugin's config directory:
+
+```sh
+"$(herdr plugin config-dir herdr-touchbar)"/.env
+```
+
+Exporting them in a shell before `bin/run.sh start` does not work: the app is
+launched through `open`, and LaunchServices does not pass along the environment
+of whatever asked for the launch. The file is read at startup, so restart the app
+after editing it. Real environment variables still win when the app does inherit
+them.
 
 | Variable | Default | Effect |
 |---|---|---|
 | `HERDR_TOUCHBAR_ONLY_ACTIVE` | unset | `1` hides idle agents, leaving only the ones working or waiting |
 | `HERDR_TOUCHBAR_TERMINAL_BUNDLE_ID` | auto-detected | which terminal to raise when you tap an agent. Ghostty, iTerm2, kitty, WezTerm, Alacritty, Warp and Terminal.app are tried in that order; set this if yours is missing or you run several |
 | `HERDR_SOCKET_PATH` | `~/.config/herdr/herdr.sock` | herdr control socket |
-| `HERDR_TOUCHBAR_DEBUG` | unset | `1` for verbose logging on stderr |
+| `HERDR_TOUCHBAR_DEBUG` | unset | `1` for verbose logging |
+
+See [`.env.example`](.env.example) for a copyable version. The app logs to
+`~/Library/Logs/herdr-touchbar.log`.
 
 ## How it works
 
