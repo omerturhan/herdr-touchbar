@@ -8,6 +8,19 @@ enum AgentStatus: String {
     }
 
     var isBusy: Bool { self == .working }
+
+    /// Attention queue weight, used when herdr is set to `agent_panel_sort =
+    /// "priority"`. Blocked and done are the states that want something from you;
+    /// working is worth watching; idle is noise.
+    var attentionRank: Int {
+        switch self {
+        case .blocked: return 0
+        case .done:    return 1
+        case .working: return 2
+        case .idle:    return 3
+        case .unknown: return 4
+        }
+    }
 }
 
 struct AgentEntry: Equatable {
@@ -208,13 +221,21 @@ final class AgentStore {
             ))
         }
 
-        // Match herdr's own sidebar: workspaces in their arranged order, and tabs
-        // in theirs within each workspace. Both arrays arrive in that order — note
-        // that `number` is a stable shortcut identifier, not a position, so a tab
-        // dragged elsewhere keeps its number while moving in the array.
+        // Match herdr's own sidebar, following its `ui.agent_panel_sort`.
+        //
+        // The positional part comes from the array order of `workspaces` and
+        // `tabs`, which arrive arranged the way the user arranged them. Note that
+        // `number` is a stable shortcut identifier, not a position — a tab dragged
+        // elsewhere keeps its number while moving in the array — so indexing by
+        // position is the only thing that tracks the sidebar.
         let workspaceOrder = indexMap(snapshot["workspaces"] as? [[String: Any]], key: "workspace_id")
         let tabOrder = indexMap(snapshot["tabs"] as? [[String: Any]], key: "tab_id")
+        let byAttention = HerdrConfig.sortMode == .priority
+
         entries.sort {
+            if byAttention, $0.status.attentionRank != $1.status.attentionRank {
+                return $0.status.attentionRank < $1.status.attentionRank
+            }
             let workspaceA = workspaceOrder[$0.workspaceId] ?? .max
             let workspaceB = workspaceOrder[$1.workspaceId] ?? .max
             if workspaceA != workspaceB { return workspaceA < workspaceB }

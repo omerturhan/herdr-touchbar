@@ -29,11 +29,18 @@ blocked, orange working (with a live spinner), green done, grey idle. The agent 
 are currently in gets a brighter button. Tapping one focuses that agent in herdr
 and brings the terminal to the front.
 
-Agents appear in the same order as herdr's own sidebar — workspaces as you have
-arranged them, tabs as you have arranged them within each — so the Touch Bar reads
-like the list you already know, and reordering a tab in herdr moves it here too.
-Nothing is sorted by state, which means a button never slides out from under a
-finger just because an agent started or finished something.
+Agents are ordered the way your sidebar is, by following herdr's own
+`ui.agent_panel_sort`:
+
+- `spaces` (herdr's default) lays them out by space, in the arrangement you
+  dragged them into. Reordering a tab in herdr moves it here too.
+- `priority` puts whoever wants something from you first — blocked, then done,
+  then working, then idle — and falls back to the same arrangement within each
+  group.
+
+herdr does not document the exact precedence inside its own attention queue, so
+`priority` here is a close reading of it rather than a guarantee; if your sidebar
+disagrees, `HERDR_TOUCHBAR_SORT` pins the mode regardless of herdr's setting.
 
 The panel stays up after a tap — hopping between agents is the whole point, and
 reopening it every time would be worse than leaving it in reach. The ✕ on the left
@@ -119,6 +126,7 @@ them.
 | Variable | Default | Effect |
 |---|---|---|
 | `HERDR_TOUCHBAR_ONLY_ACTIVE` | unset | `1` hides idle agents, leaving only the ones working or waiting |
+| `HERDR_TOUCHBAR_SORT` | follows herdr | `spaces` or `priority`, to pin the order instead of following `ui.agent_panel_sort` |
 | `HERDR_TOUCHBAR_TERMINAL_BUNDLE_ID` | auto-detected | which terminal to raise when you tap an agent. Ghostty, iTerm2, kitty, WezTerm, Alacritty, Warp and Terminal.app are tried in that order; set this if yours is missing or you run several |
 | `HERDR_SOCKET_PATH` | `~/.config/herdr/herdr.sock` | herdr control socket |
 | `HERDR_TOUCHBAR_DEBUG` | unset | `1` for verbose logging |

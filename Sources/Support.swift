@@ -57,6 +57,79 @@ enum Config {
     }
 }
 
+/// How the agent list is ordered.
+enum SortMode: String {
+    /// Grouped by space, in the arrangement the sidebar shows.
+    case spaces
+    /// Attention queue: whoever is waiting on you comes first.
+    case priority
+}
+
+/// Follows herdr's own `ui.agent_panel_sort`, so the Touch Bar is ordered the
+/// same way as the sidebar it sits under rather than having a second opinion.
+///
+/// Read from `config.toml` directly because the socket API does not expose UI
+/// settings. Re-read when the file changes so toggling the setting in herdr does
+/// not need the app restarted.
+enum HerdrConfig {
+
+    private static var cached: (mode: SortMode, stamp: Date)?
+    private static let lock = NSLock()
+
+    static var sortMode: SortMode {
+        if let override = Config.string("HERDR_TOUCHBAR_SORT"),
+           let mode = SortMode(rawValue: override.lowercased()) {
+            return mode
+        }
+
+        lock.lock()
+        defer { lock.unlock() }
+
+        let path = configPath
+        let stamp = (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate])
+            as? Date
+        if let cached, cached.stamp == stamp { return cached.mode }
+
+        let mode = parseSortMode(path) ?? .spaces
+        cached = (mode, stamp ?? .distantPast)
+        return mode
+    }
+
+    private static var configPath: String {
+        let config = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]
+            ?? (NSHomeDirectory() as NSString).appendingPathComponent(".config")
+        return (config as NSString).appendingPathComponent("herdr/config.toml")
+    }
+
+    /// Scans the `[ui]` table for `agent_panel_sort`. Deliberately not a TOML
+    /// parser — one key from one table, and being wrong just means falling back
+    /// to the documented default.
+    private static func parseSortMode(_ path: String) -> SortMode? {
+        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+
+        var inUITable = false
+        for rawLine in text.split(whereSeparator: \.isNewline) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("#") { continue }
+            if line.hasPrefix("[") {
+                // Nested tables such as [ui.sidebar.agents] are not the [ui] table.
+                inUITable = (line == "[ui]")
+                continue
+            }
+            guard inUITable, line.hasPrefix("agent_panel_sort") else { continue }
+            guard let split = line.firstIndex(of: "=") else { continue }
+            let value = line[line.index(after: split)...]
+                .trimmingCharacters(in: .whitespaces)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                .lowercased()
+            // herdr accepts "workspaces" as an alias for "spaces".
+            if value == "workspaces" { return .spaces }
+            return SortMode(rawValue: value)
+        }
+        return nil
+    }
+}
+
 enum Log {
     private static let verbose = Config.flag("HERDR_TOUCHBAR_DEBUG")
 
