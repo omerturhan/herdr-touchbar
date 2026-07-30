@@ -25,16 +25,20 @@ Tap it and the whole bar becomes your herd:
 
 **The expanded panel** (above) shows one button per agent: its brand icon, its tab name,
 its project name in a smaller second line, and a colour for its state — red
-blocked, orange working (with a live spinner), green done, grey idle. Agents that
-need you sort to the left. The agent you are currently in gets a brighter button.
-Tapping one focuses that agent in herdr and brings the terminal to the front.
+blocked, orange working (with a live spinner), green done, grey idle. The agent you
+are currently in gets a brighter button. Tapping one focuses that agent in herdr
+and brings the terminal to the front.
+
+Agents appear in the same order as herdr's own sidebar — workspaces as you have
+arranged them, tabs as you have arranged them within each — so the Touch Bar reads
+like the list you already know, and reordering a tab in herdr moves it here too.
+Nothing is sorted by state, which means a button never slides out from under a
+finger just because an agent started or finished something.
 
 The panel stays up after a tap — hopping between agents is the whole point, and
-reopening it every time would be worse than leaving it in reach. The layout also
-freezes while it is open, so a button never slides out from under a finger that
-is already reaching for it; the order is only re-sorted when an agent appears or
-disappears. The ✕ on the left collapses back to the Control Strip, which you will
-want when you need the volume and brightness keys back.
+reopening it every time would be worse than leaving it in reach. The ✕ on the left
+collapses back to the Control Strip, which you will want when you need the volume
+and brightness keys back.
 
 ## Install
 

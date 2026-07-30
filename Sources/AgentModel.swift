@@ -7,17 +7,6 @@ enum AgentStatus: String {
         self = AgentStatus(rawValue: value ?? "") ?? .unknown
     }
 
-    /// Sort weight — the states that want the user's attention float to the left.
-    var rank: Int {
-        switch self {
-        case .blocked: return 0
-        case .working: return 1
-        case .done:    return 2
-        case .idle:    return 3
-        case .unknown: return 4
-        }
-    }
-
     var isBusy: Bool { self == .working }
 }
 
@@ -219,13 +208,31 @@ final class AgentStore {
             ))
         }
 
-        // Attention first, then a stable order so buttons don't shuffle underneath a finger.
+        // Match herdr's own sidebar: workspaces in their arranged order, and tabs
+        // in theirs within each workspace. Both arrays arrive in that order — note
+        // that `number` is a stable shortcut identifier, not a position, so a tab
+        // dragged elsewhere keeps its number while moving in the array.
+        let workspaceOrder = indexMap(snapshot["workspaces"] as? [[String: Any]], key: "workspace_id")
+        let tabOrder = indexMap(snapshot["tabs"] as? [[String: Any]], key: "tab_id")
         entries.sort {
-            $0.status.rank != $1.status.rank ? $0.status.rank < $1.status.rank
-                : ($0.workspaceId != $1.workspaceId ? $0.workspaceId < $1.workspaceId
-                    : $0.paneId < $1.paneId)
+            let workspaceA = workspaceOrder[$0.workspaceId] ?? .max
+            let workspaceB = workspaceOrder[$1.workspaceId] ?? .max
+            if workspaceA != workspaceB { return workspaceA < workspaceB }
+            let tabA = tabOrder[$0.tabId] ?? .max
+            let tabB = tabOrder[$1.tabId] ?? .max
+            if tabA != tabB { return tabA < tabB }
+            return $0.paneId < $1.paneId
         }
         return AgentSnapshot(agents: entries, connected: true)
+    }
+
+    /// Position of each entry in a snapshot array, keyed by its id.
+    private static func indexMap(_ rows: [[String: Any]]?, key: String) -> [String: Int] {
+        var map: [String: Int] = [:]
+        for (index, row) in (rows ?? []).enumerated() {
+            if let id = row[key] as? String { map[id] = index }
+        }
+        return map
     }
 
     /// Brings an agent to the foreground: focus it inside herdr, then raise the terminal.

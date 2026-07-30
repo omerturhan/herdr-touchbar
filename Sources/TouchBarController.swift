@@ -209,16 +209,16 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
         syncSpinner(snapshot)
     }
 
-    /// While the panel is open the layout is frozen: the same agents keep the same
-    /// slots even as their status changes. A new or closed agent re-sorts it.
+    /// The store already hands agents over in herdr's sidebar order, so this only
+    /// applies the idle filter.
+    ///
+    /// There is no longer any need to freeze the layout while the panel is open:
+    /// the order is positional, so a status change cannot reshuffle it and pull a
+    /// button out from under a finger. Passing the live order straight through is
+    /// what lets a tab reordered in herdr move on the Touch Bar too.
     private func agentsForDisplay(_ snapshot: AgentSnapshot) -> [AgentEntry] {
-        var agents = snapshot.agents
-        if Self.onlyActive {
-            agents = agents.filter { $0.status != .idle && $0.status != .unknown }
-        }
-        guard panelVisible, Set(onScreenOrder) == Set(agents.map(\.paneId)) else { return agents }
-        let byId = Dictionary(agents.map { ($0.paneId, $0) }, uniquingKeysWith: { a, _ in a })
-        return onScreenOrder.compactMap { byId[$0] }
+        guard Self.onlyActive else { return snapshot.agents }
+        return snapshot.agents.filter { $0.status != .idle && $0.status != .unknown }
     }
 
     /// The spinner is the only thing burning CPU while idle, so it only runs
