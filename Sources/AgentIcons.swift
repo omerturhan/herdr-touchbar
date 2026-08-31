@@ -17,8 +17,10 @@ enum AgentIcons {
         "gemini": "gemini-color",
         "geminicli": "geminicli-color",
         "cursor": "cursor",
-        "copilot": "copilot-color",
+        "copilot": "githubcopilot",
         "githubcopilot": "githubcopilot",
+        "agy": "antigravity-color",
+        "antigravity": "antigravity-color",
         "grok": "grok",
         "kimi": "kimi-color",
         "qwen": "qwen-color",
@@ -35,7 +37,6 @@ enum AgentIcons {
     private static let glyphs: [String: String] = [
         "omp": "π",
         "pi": "π",
-        "agy": "◈",
         "amp": "≋",
     ]
 
