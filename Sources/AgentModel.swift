@@ -257,9 +257,14 @@ final class AgentStore {
     }
 
     /// Brings an agent to the foreground: focus it inside herdr, then raise the terminal.
+    ///
+    /// Uses `pane.focus` rather than `agent.focus`: since herdr 0.9.0 each attached
+    /// client keeps its own tab view, and only the pane/tab/workspace focus methods
+    /// are projected onto those clients. `agent.focus` moves the session focus but
+    /// leaves the terminal UI where it was. Both mark the tab as seen.
     static func focus(_ entry: AgentEntry) {
         DispatchQueue.global(qos: .userInitiated).async {
-            HerdrSocket.request("agent.focus", ["target": entry.paneId])
+            HerdrSocket.request("pane.focus", ["pane_id": entry.paneId])
             DispatchQueue.main.async { TerminalActivator.activate() }
         }
     }
